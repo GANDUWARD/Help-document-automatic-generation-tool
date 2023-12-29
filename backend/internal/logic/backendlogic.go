@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -41,12 +42,10 @@ func buildFileTree(rootPath string) (*Filenode, error) {
 		if err != nil {
 			return err
 		}
-
-		// 忽略根目录
+		//忽略原目录
 		if path == rootPath {
 			return nil
 		}
-
 		// 构建节点
 		node := &Filenode{
 			Name:        info.Name(),
@@ -103,7 +102,7 @@ func (l *BackendLogic) Backend(req *types.Request) (resp *types.Response, err er
 		return
 	}
 	// 将树形结构转为JSON
-	jsonData, err := json.MarshalIndent(fileTree, "", "  ")
+	jsonData, err := json.MarshalIndent(fileTree.Firstchild, "", "  ")
 	if err != nil {
 		fmt.Println("Error marshaling JSON:", err)
 		return
@@ -127,5 +126,43 @@ func (l *BackendLogic) Backend(req *types.Request) (resp *types.Response, err er
 			return nil
 		})
 	*/
+	return
+}
+func (l *BackendLogic) BackendPOST(req *types.PostRequest) (resp *types.Response, err error) {
+	// todo: add your logic here and delete this line
+	respon := new(types.Response)
+	resp = respon
+	//读取指定文件
+	filepath := req.Path
+	// 读取文件内容
+	content, err := os.ReadFile(filepath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	resp.Data = string(content)
+	return
+}
+func (l *BackendLogic) BackendSAVE(req *types.SaveRequest) (resp *types.Response, err error) {
+	// todo: add your logic here and delete this line
+	respon := new(types.Response)
+	resp = respon
+	//读取指定文件
+	// 指定文件目录和文件名
+	directory := req.Path
+	fileName := req.Name
+
+	// 指定文件内容
+	fileContent := req.Content
+	// 拼接文件路径
+	filePath := filepath.Join(directory, fileName)
+
+	// 写入文件内容
+	err = os.WriteFile(filePath, []byte(fileContent), os.ModePerm)
+	if err != nil {
+		fmt.Println("写入错误", err)
+		return
+	}
+
+	fmt.Println("创建成功：", filePath)
 	return
 }
