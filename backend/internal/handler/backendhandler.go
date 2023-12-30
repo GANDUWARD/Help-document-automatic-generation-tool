@@ -64,3 +64,21 @@ func BackendHandlerSAVE(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 	}
 }
+func BackendHandlerEXPORT(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.ExportRequest
+		Prefix_Managing(w, r)
+		if err := httpx.Parse(r, &req); err != nil {
+			httpx.ErrorCtx(r.Context(), w, err)
+			return
+		}
+
+		l := logic.NewBackendLogic(r.Context(), svcCtx)
+		resp, err := l.BackendEXPORT(&req)
+		if err != nil {
+			httpx.ErrorCtx(r.Context(), w, err)
+		} else {
+			httpx.OkJsonCtx(r.Context(), w, resp)
+		}
+	}
+}

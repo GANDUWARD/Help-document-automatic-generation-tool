@@ -166,3 +166,122 @@ func (l *BackendLogic) BackendSAVE(req *types.SaveRequest) (resp *types.Response
 	fmt.Println("创建成功：", filePath)
 	return
 }
+func extractAnnotations(content string) []string {
+	lines := strings.Split(content, "\n")
+	var annotations []string
+
+	for _, line := range lines {
+		if strings.Contains(line, "@") {
+			index := strings.Index(line, "@")
+			if index != -1 {
+				annotations = append(annotations, strings.TrimSpace(line[index+1:]))
+			}
+		} else if strings.Contains(line, "{") {
+			index := strings.Index(line, "{")
+			if index != -1 {
+				annotations = append(annotations, strings.TrimSpace(line[:index]))
+			}
+		}
+	}
+	return annotations
+}
+func BuildHTML(filePath string, fileName string, annotations []string) {
+	fileALLPATH := filePath + ".html"
+	var fileContent string
+	fileContent += "<!DOCTYPE html>\r\n<html>\r\n<head>\r\n<title>" + fileName + " Documentation</title>\r\n</head>\r\n<body>\r\n"
+
+	fileContent += "<h1>" + fileName + " Documentation</h1>\r\n"
+	var filediscription string
+	var filediscription_key int
+	//找文件描述
+	for k, v := range annotations {
+		if strings.Contains(v, "brief") {
+			filediscription = v
+			filediscription_key = k
+			break
+		}
+
+	}
+	fileContent += "<p>" + filediscription + "</p>\r\n"
+
+	fileContent += "<h2>Functions</h2>\r\n"
+	//开始函数描述
+	type Function struct {
+		Name   string
+		Brief  string
+		Params []string
+		Re     string
+	}
+	var ALLFunction []Function
+	thisF := &Function{}
+	for i := filediscription_key + 1; i < len(annotations); i++ {
+		if strings.Contains(annotations[i], "brief") {
+			thisF.Brief = annotations[i]
+		} else if strings.Contains(annotations[i], "param") {
+			thisF.Params = append(thisF.Params, annotations[i])
+		} else if strings.Contains(annotations[i], "return") {
+			thisF.Re = annotations[i]
+		} else {
+			thisF.Name = annotations[i]
+			ALLFunction = append(ALLFunction, *thisF)
+			thisF = new(Function)
+		}
+	}
+	for _, v := range ALLFunction {
+		fileContent += "<h3>" + v.Name + "</h3>\r\n"
+		fileContent += "<p>" + v.Brief + "</p>\r\n"
+		fileContent += "<ul>\r\n"
+
+		for _, value := range v.Params {
+			//第一个空格后表参数值
+			index := strings.Index(value, " ")
+			//第二个空格后表参数描述
+			indexend := strings.Index(value[index+1:], " ")
+			fileContent += "<li><strong>" + value[index+1:index+indexend+1] + ":</strong> " + value[index+indexend+1:] + "</li>\r\n"
+		}
+
+		fileContent += "<li><strong>Returns:</strong> " + v.Re + "</li>\r\n"
+		fileContent += "</ul>\r\n"
+	}
+
+	fileContent += "</body>\r\n</html>"
+
+	//写入文件内容
+	err := os.WriteFile(fileALLPATH, []byte(fileContent), os.ModePerm)
+	if err != nil {
+		fmt.Println("写入错误", err)
+		return
+	}
+
+	fmt.Println("创建成功：", fileName)
+}
+func (l *BackendLogic) BackendEXPORT(req *types.ExportRequest) (resp *types.Response, err error) {
+	// todo: add your logic here and delete this line
+	respon := new(types.Response)
+	resp = respon
+	//读取指定文件
+	// 指定文件目录和文件名
+	directory := req.Path
+	fileName := req.Name
+	// 拼接文件路径
+	filePath := filepath.Join(directory, fileName)
+
+	// 读取文件内容
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Println("读取错误", err)
+		return
+	}
+	/*
+		//用正则表达式匹配@+关键词的内容
+		flysnowRegexp := regexp.MustCompile(`\/\/[^\n]*@([^\n]+)|\/\*.*?@([^\n]+).*?\*\/`)
+		params := flysnowRegexp.FindAllStringSubmatch(string(content), -1)
+		for _, v := range params {
+			fmt.Println(v[1])
+		}
+	*/
+	//通过字符串读取的方式逐行读取注释
+	annotations := extractAnnotations(string(content))
+	BuildHTML(filePath, fileName, annotations)
+	return
+}

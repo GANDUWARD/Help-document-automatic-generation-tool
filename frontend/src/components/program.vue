@@ -8,7 +8,7 @@
     </div>
     <div class="mid-area">
       <p>文本查看编辑</p>
-      <div v-if="isEditing">
+      <div v-if="isEditing" class="editing-container">
         <!-- 新建状态，显示文本框和保存按钮 -->
         <input v-model="editedFileName" placeholder="文件名" />
         <textarea v-model="editedFileContent" placeholder="文件内容"></textarea>
@@ -19,6 +19,7 @@
         <div class="code-content">{{ midAreaData }}</div>
         <!-- 显示编辑按钮 -->
         <button @click="startEditing">编辑</button>
+        <button @click="exportFile">导出</button> 
       </div>
     </div>
   </div>
@@ -121,6 +122,21 @@ export default {
       // 退出编辑状态
       this.isEditing = false;
     },
+    exportFile() {
+      // 导出文件，发送请求到后端
+      const exportedFileName = this.filename;
+      axios.post('http://127.0.0.1:8888/export', {
+        path: 'C:\\Users\\ASUS\\Documents\\GitHub\\Help-document-automatic-generation-tool\\backend\\taskarea',
+        name: exportedFileName,
+      })
+      .then(response => {
+        console.log('Export successful:', response.data);
+        // 可以根据需要处理导出后的响应
+      })
+      .catch(error => {
+        console.error('Error exporting file:', error);
+      });
+    },
   },
 };
 </script>
@@ -142,10 +158,34 @@ export default {
   color: rgb(0, 0, 0);
   background-color: antiquewhite;
   border-style: dashed;
-  height: 100;
+  height: 100%;
   overflow: auto; /* 添加 overflow 属性以处理过长的文本 */
 }
+
+
+.editing-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* 设置编辑容器高度为100% */
+}
+
+.editing-container input,
+.editing-container textarea {
+  margin-bottom: 10px; /* 设置文本框之间的垂直间距 */
+  padding: 10px; /* 设置文本框内边距 */
+  width: 100%; /* 设置文本框宽度为容器宽度 */
+  box-sizing: border-box; /* 包含 padding 在内的盒模型 */
+}
+
+/* 修改文件内容文本框高度为70% */
+.editing-container textarea {
+  flex: 1; /* 使用 flex 属性填充编辑容器的剩余空间 */
+  height: 70%;
+}
+
 .code-content {
   white-space: pre-wrap;
+  height: 50%; /* 设置文件内容文本框高度 */
+  overflow: auto; /* 添加 overflow 属性以处理过长的文本 */
 }
 </style>

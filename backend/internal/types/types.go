@@ -6,6 +6,10 @@ type Request struct {
 type PostRequest struct {
 	Path string `json:"path"`
 }
+type ExportRequest struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
 type SaveRequest struct {
 	Name    string `json:"name"`
 	Path    string `json:"path"`

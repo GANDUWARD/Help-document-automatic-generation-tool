@@ -76,4 +76,22 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 		},
 	)
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodPost,
+				Path:    "/export",
+				Handler: BackendHandlerEXPORT(serverCtx),
+			},
+		},
+	)
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodOptions,
+				Path:    "/export",
+				Handler: Prefix_Managing,
+			},
+		},
+	)
 }
