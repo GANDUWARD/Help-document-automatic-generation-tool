@@ -35,48 +35,7 @@ func NewBackendLogic(ctx context.Context, svcCtx *svc.ServiceContext) *BackendLo
 		svcCtx: svcCtx,
 	}
 }
-func buildFileTree(rootPath string) (*Filenode, error) {
-	var root Filenode
 
-	err := filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		//忽略原目录
-		if path == rootPath {
-			return nil
-		}
-		// 构建节点
-		node := &Filenode{
-			Name:        info.Name(),
-			Path:        path,
-			IsDirectory: info.IsDir(),
-		}
-
-		// 将节点添加到树中
-		root.addFileNode(node)
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &root, nil
-}
-
-func (node *Filenode) addFileNode(newNode *Filenode) {
-	if node.Firstchild == nil {
-		node.Firstchild = newNode
-	} else {
-		currentNode := node.Firstchild
-		for currentNode.Nextsibling != nil {
-			currentNode = currentNode.Nextsibling
-		}
-		currentNode.Nextsibling = newNode
-	}
-}
 func GetFileName(s string) string {
 	names := strings.Split(s, "\\")
 	return names[len(names)-1]
@@ -88,6 +47,88 @@ func IsDirectory(s string) bool {
 		}
 	}
 	return true
+}
+func buildFileTree(rootPath string) (*Filenode, error) {
+	var root Filenode
+	dirMap := make(map[string]*Filenode)
+	root.Path = rootPath
+	root.Name = "taskarea"
+	// 使用队列进行层序遍历
+	queue := []*Filenode{&root}
+
+	for len(queue) > 0 {
+		// 出队
+		node := queue[0]
+		queue = queue[1:]
+
+		// 获取当前节点的子目录和文件
+		fileInfos, err := os.ReadDir(node.Path)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, info := range fileInfos {
+			absPath := filepath.Join(node.Path, info.Name())
+
+			// 构建节点
+			newNode := &Filenode{
+				Name:        info.Name(),
+				Path:        absPath,
+				IsDirectory: info.IsDir(),
+			}
+
+			// 处理子目录
+			if info.IsDir() {
+				// 判断目录是否已存在
+				if existingNode, ok := dirMap[newNode.Path]; ok {
+					newNode = existingNode
+				} else {
+					dirMap[newNode.Path] = newNode
+					// 入队
+					queue = append(queue, newNode)
+				}
+			}
+
+			// 将节点添加到树中
+			node.addFileNode(newNode)
+		}
+	}
+
+	return &root, nil
+}
+func (node *Filenode) addFileNode(newNode *Filenode) {
+	if newNode.IsDirectory {
+		// 如果是目录，将其作为当前节点的子节点
+		if node.Firstchild == nil {
+			node.Firstchild = newNode
+		} else {
+			// 查找当前节点的子节点，如果已存在相同路径的目录，则更新子节点
+			currentNode := node.Firstchild
+			for currentNode.Nextsibling != nil {
+				if currentNode.Path == newNode.Path {
+					currentNode = newNode
+					return
+				}
+				currentNode = currentNode.Nextsibling
+			}
+			currentNode.Nextsibling = newNode
+		}
+	} else {
+		// 如果是文件，直接将新节点作为当前节点的子节点
+		if node.Firstchild == nil {
+			node.Firstchild = newNode
+		} else {
+			// 查找当前节点的子节点，如果已存在相同路径的文件，则不添加
+			currentNode := node.Firstchild
+			for currentNode.Nextsibling != nil {
+				if currentNode.Path == newNode.Path {
+					return
+				}
+				currentNode = currentNode.Nextsibling
+			}
+			currentNode.Nextsibling = newNode
+		}
+	}
 }
 func (l *BackendLogic) Backend(req *types.Request) (resp *types.Response, err error) {
 	// todo: add your logic here and delete this line
@@ -102,7 +143,7 @@ func (l *BackendLogic) Backend(req *types.Request) (resp *types.Response, err er
 		return
 	}
 	// 将树形结构转为JSON
-	jsonData, err := json.MarshalIndent(fileTree.Firstchild, "", "  ")
+	jsonData, err := json.MarshalIndent(fileTree, "", "  ")
 	if err != nil {
 		fmt.Println("Error marshaling JSON:", err)
 		return
@@ -137,7 +178,7 @@ func (l *BackendLogic) BackendPOST(req *types.PostRequest) (resp *types.Response
 	// 读取文件内容
 	content, err := os.ReadFile(filepath)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	resp.Data = string(content)
 	return
