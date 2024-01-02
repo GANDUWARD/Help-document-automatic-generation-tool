@@ -217,7 +217,7 @@ func extractAnnotations(content string) []string {
 			if index != -1 {
 				annotations = append(annotations, strings.TrimSpace(line[index+1:]))
 			}
-		} else if strings.Contains(line, "{") {
+		} else if strings.Contains(line, "{") && !strings.Contains(line, "class") { //排除类名
 			index := strings.Index(line, "{")
 			if index != -1 {
 				annotations = append(annotations, strings.TrimSpace(line[:index]))
@@ -237,7 +237,12 @@ func BuildHTML(filePath string, fileName string, annotations []string) {
 	//找文件描述
 	for k, v := range annotations {
 		if strings.Contains(v, "brief") {
-			filediscription = v
+			index := strings.Index(v, "brief")
+			if index != -1 {
+				filediscription = strings.TrimSpace(v[index+len("brief"):])
+			} else {
+				filediscription = v
+			}
 			filediscription_key = k
 			break
 		}
@@ -245,7 +250,6 @@ func BuildHTML(filePath string, fileName string, annotations []string) {
 	}
 	fileContent += "<p>" + filediscription + "</p>\r\n"
 
-	fileContent += "<h2>Functions</h2>\r\n"
 	//开始函数描述
 	type Function struct {
 		Name   string
@@ -257,7 +261,12 @@ func BuildHTML(filePath string, fileName string, annotations []string) {
 	thisF := &Function{}
 	for i := filediscription_key + 1; i < len(annotations); i++ {
 		if strings.Contains(annotations[i], "brief") {
-			thisF.Brief = annotations[i]
+			index := strings.Index(annotations[i], "brief")
+			if index != -1 {
+				thisF.Brief = strings.TrimSpace(annotations[i][index+len("brief"):])
+			} else {
+				thisF.Brief = annotations[i]
+			}
 		} else if strings.Contains(annotations[i], "param") {
 			thisF.Params = append(thisF.Params, annotations[i])
 		} else if strings.Contains(annotations[i], "return") {
@@ -268,6 +277,18 @@ func BuildHTML(filePath string, fileName string, annotations []string) {
 			thisF = new(Function)
 		}
 	}
+	// 生成函数总表
+	fileContent += "<h2>Functions</h2>\r\n"
+	fileContent += "<table border=\"1\">\r\n"
+	fileContent += "<tr><th>Name</th></tr>\r\n"
+
+	for _, v := range ALLFunction {
+		fileContent += "<tr>\r\n"
+		fileContent += "<td><h3>" + v.Name + "</h3></td>\r\n"
+		fileContent += "</tr>\r\n"
+	}
+
+	fileContent += "</table>\r\n"
 	for _, v := range ALLFunction {
 		fileContent += "<h3>" + v.Name + "</h3>\r\n"
 		fileContent += "<p>" + v.Brief + "</p>\r\n"
