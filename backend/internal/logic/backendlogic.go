@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 
 	"backend/internal/svc"
@@ -217,7 +218,7 @@ func extractAnnotations(content string) []string {
 			if index != -1 {
 				annotations = append(annotations, strings.TrimSpace(line[index+1:]))
 			}
-		} else if strings.Contains(line, "{") && !strings.Contains(line, "class") { //排除类名
+		} else if strings.Contains(line, "{") && !strings.Contains(line, "class") && !strings.Contains(line, "#") { //排除类名
 			index := strings.Index(line, "{")
 			if index != -1 {
 				annotations = append(annotations, strings.TrimSpace(line[:index]))
@@ -334,16 +335,21 @@ func (l *BackendLogic) BackendEXPORT(req *types.ExportRequest) (resp *types.Resp
 		fmt.Println("读取错误", err)
 		return
 	}
-	/*
-		//用正则表达式匹配@+关键词的内容
-		flysnowRegexp := regexp.MustCompile(`\/\/[^\n]*@([^\n]+)|\/\*.*?@([^\n]+).*?\*\/`)
-		params := flysnowRegexp.FindAllStringSubmatch(string(content), -1)
-		for _, v := range params {
-			fmt.Println(v[1])
+
+	//用正则表达式匹配@+关键词的内容
+	flysnowRegexp := regexp.MustCompile(`/\*.*?\*/|[^{}]*{`)
+	params := flysnowRegexp.FindAllStringSubmatch(string(content), -1)
+	var real_content string
+	for _, v := range params {
+		fmt.Println(v[0])
+		if v[0] != "" {
+			real_content += v[0]
 		}
-	*/
-	//通过字符串读取的方式逐行读取注释
-	annotations := extractAnnotations(string(content))
-	BuildHTML(filePath, fileName, annotations)
+	}
+	if real_content != "" {
+		//通过字符串读取的方式逐行读取注释
+		annotations := extractAnnotations(string(real_content))
+		BuildHTML(filePath, fileName, annotations)
+	}
 	return
 }
